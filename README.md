@@ -204,7 +204,7 @@ Suggestions for contributions:
 
 ## Author
 
-Iftekhar “Joy” Islam  
+<b>JOY</b>
 DevOps • AI • Cloud Engineer — https://imjoy.me
 
 ---
