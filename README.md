@@ -1,220 +1,214 @@
 # ☁️ Cloud Cost AI
 
-**AI-powered AWS Cost Analyzer & Anomaly Detector**  
-_Built with FastAPI • Python • Streamlit • Slack Integration_
+AI-powered AWS cost analyzer and anomaly detector — built with FastAPI, Python, Streamlit, and lightweight ML (IsolationForest). Cloud Cost AI helps you catch unexpected spend, analyze daily service usage, and receive Slack alerts when costs spike.
 
 ---
 
-## 🌟 Overview
+## Overview
 
-**Cloud Cost AI** monitors your AWS spending in real time — pulling Cost Explorer data, detecting anomalies with machine learning, and alerting your team via Slack before charges spiral out of control.
+Cloud Cost AI monitors AWS Cost Explorer data, runs anomaly detection to find unusual spending patterns, and notifies your team via Slack. It's aimed at:
 
-It’s designed for:
-- 🧑‍💻 DevOps engineers and students experimenting with AWS free-tier  
-- 🚀 Startups watching every cent of cloud usage  
-- 🧠 Small teams needing AI-driven cost visibility without enterprise FinOps tools  
-
----
-
-## 🧩 Features
-
-✅ **Daily Cost Summary**
-- Fetches AWS Cost Explorer data (`GetCostAndUsage`)
-- Groups by day and service for clarity
-
-✅ **AI-Powered Anomaly Detection**
-- Uses `IsolationForest` to detect spikes and trend breaks
-- Highlights which AWS services caused the cost deviation
-
-✅ **Slack Alerts**
-- Sends instant alerts when anomalies exceed threshold
-- Customizable minimum-impact value
-
-✅ **Interactive Dashboard**
-- Built with Streamlit + Plotly
-- Visualizes daily spend, service breakdown, and anomaly heatmaps
-
-✅ **Hourly Auto-Notifier**
-- Background Python job or Windows Task Scheduler
-- De-duplicates repeated alerts using a local state file
+- DevOps engineers and students experimenting with the AWS free tier
+- Startups keeping close watch on cloud spend
+- Small teams that want AI-driven cost visibility without enterprise FinOps tools
 
 ---
 
-## 🧠 Architecture
+## Features
+
+- Daily cost summary: fetches Cost Explorer data (GetCostAndUsage), grouped by day and service  
+- AI-powered anomaly detection: IsolationForest to surface spikes and trend breaks  
+- Slack alerts: customizable threshold and minimum-impact filter  
+- Interactive dashboard: Streamlit + Plotly for visualizations and drill-downs  
+- Hourly notifier: background job or scheduler with simple de-duplication using local state
+
+---
+
+## Architecture
+
+High-level layout:
 
 ```text
 FastAPI Backend (app/)
 │
 ├── main.py                  → API entrypoint
-│   ├── /spend/summary       → AWS Cost Explorer data (via boto3)
-│   ├── /anomalies           → Detect anomalies (IsolationForest ML)
+│   ├── /spend/summary       → Fetch AWS Cost Explorer (boto3)
+│   ├── /anomalies           → Detect anomalies (IsolationForest)
 │   └── /anomalies/notify    → Push alerts to Slack
 │
 ├── ml/
-│   └── anomaly.py           → AI-based anomaly detection logic
+│   └── anomaly.py           → Anomaly detection logic
 │
 ├── services/
 │   └── slack_notifier.py    → Slack webhook integration
 │
 └── jobs/
     └── hourly_notify.py     → Hourly scheduler to auto-send alerts
-│
+
 Streamlit Frontend (dashboard/)
-│
-├── app.py                   → Interactive dashboard (cost + anomalies)
-│   ├── Fetches data from FastAPI
-│   ├── Shows spend by service & anomaly heatmaps
-│   └── Future tabs: Forecast, Slack trigger, Trends
-│
+├── app.py                   → Interactive dashboard that fetches the API
 .env                         → Local secrets (AWS + Slack)
-.state/                      → Stores last alert signature (de-dupe)
-⚙️ Setup Guide
-1️⃣ Clone the repository
-git clone https://github.com/<yourusername>/cloud-cost-ai.git
+.state/                      → Stores last alert signature (for de-dup)
+```
+
+---
+
+## Quick Start
+
+Prerequisites:
+- Python 3.9+
+- An AWS account with Cost Explorer enabled
+- Slack webhook (optional, for alerts)
+
+1. Clone the repo
+```bash
+git clone https://github.com/iftekharchowdhuryJOY/cloud-cost-ai.git
 cd cloud-cost-ai
+```
 
-2️⃣ Create a virtual environment
-python -m venv .venv312
-.\.venv312\Scripts\activate
+2. Create & activate a virtual environment
+(Windows example)
+```bash
+python -m venv .venv
+.\.venv\Scripts\activate
+```
+(Unix/macOS example)
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
-3️⃣ Install dependencies
+3. Install dependencies
+```bash
 pip install -r requirements.txt
-
-
-Or manually:
-
+```
+or manually:
+```bash
 pip install fastapi uvicorn boto3 pandas scikit-learn python-dotenv requests streamlit plotly
+```
 
-4️⃣ Configure environment
+4. Configure environment variables
 
-Create a .env file:
+Create a `.env` file in the project root (do NOT commit this file):
 
+```
 AWS_ACCESS_KEY_ID=your_key
 AWS_SECRET_ACCESS_KEY=your_secret
 AWS_DEFAULT_REGION=us-east-1
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
+```
 
-
-⚠️ Never commit .env to GitHub.
-Add it to .gitignore immediately.
-
-5️⃣ Run FastAPI backend
+5. Run the FastAPI backend
+```bash
 uvicorn app.main:app --reload --port 8080
+```
+Open API docs: http://localhost:8080/docs
 
-
-Visit:
-
-http://localhost:8080/docs
-
-6️⃣ Run Streamlit dashboard
+6. Run the Streamlit dashboard
+```bash
 cd dashboard
 streamlit run app.py
+```
+Open the dashboard: http://localhost:8501
 
-
-Open:
-
-http://localhost:8501
-
-7️⃣ (Optional) Enable hourly Slack alerts
+7. (Optional) Start hourly notifier
+```bash
 python jobs/hourly_notify.py
+```
+Or schedule `jobs/hourly_notify.py` with your OS scheduler (cron, Task Scheduler, etc.).
 
+---
 
-Or schedule via Windows Task Scheduler to run hourly.
+## API Endpoints
 
-🧮 API Endpoints
-Endpoint	Method	Description
-/spend/summary?days=30	GET	Returns daily spend per AWS service
-/anomalies?days=120&minimpact=0.1	GET	Detects cost anomalies
-/anomalies/notify	GET	Sends top anomaly to Slack
-💬 Example Slack Alert
+| Endpoint | Method | Description |
+|---------:|:------:|:------------|
+| /spend/summary?days=30 | GET | Returns daily spend per AWS service |
+| /anomalies?days=120&minimpact=0.1 | GET | Runs anomaly detection and returns anomalies |
+| /anomalies/notify | POST | Sends top anomaly to Slack (or send payload) |
 
-🚨 AWS Cost Anomaly Detected
-• Date: 2025-09-01
-• Impact: $8.17
-• EC2 – Other: +$1.2
-• Tax: +$6.05
-• Elastic Compute Cloud: +$0.9
+Notes:
+- Adjust `days` and `minimpact` query parameters for different time windows and sensitivity.
+- /anomalies/notify should be protected or used internally; consider adding API key middleware for production.
 
-🧱 Security Notes
-Area	Risk	Fix
-.env	Credentials leak if committed	Add to .gitignore
-Slack Webhook	Anyone with URL can spam	Keep secret, rotate periodically
-AWS IAM	Over-permissioned keys	Use least-privileged role (ce:GetCostAndUsage)
-FastAPI	Public endpoints	Add API key middleware for prod
-Streamlit	Open dashboard	Protect with Basic Auth / proxy
-State file	Editable	Restrict permissions or use DB
-Dependencies	Outdated	Run pip-audit or safety check
-🧮 Example Workflow
+---
 
-User launches FastAPI backend
+## Example Slack Alert
 
-/spend/summary pulls AWS data (past N days)
-
-/anomalies runs AI detection (IsolationForest)
-
-/anomalies/notify pushes alert to Slack
-
-Streamlit dashboard visualizes all results
-
-Optional hourly job automates alert checks
-
-🗺️ Roadmap
-Version	Features
-v1.0 (Now)	Core detection, Slack alerts, Streamlit dashboard
-v2.0 (Next)	NAT Gateway & Elastic IP cost tracking
-	AI forecast (Prophet/ARIMA)
-	Live Slack trigger from dashboard
-	Authentication for public deployment
-🧑‍💻 Author
-
-Iftekhar “Joy” Islam
-💼 LinkedIn
-
-🚀 DevOps • AI • Cloud Engineer
-🌐 imjoy.me
-
-⚖️ License
-
-MIT License — free to use, modify, and share.
-
-🤝 Contributing
-
-Pull requests welcome!
-Open an issue if you’d like to discuss ideas for:
-
-Cost forecasting with AI
-
-Kubernetes/Serverless deployment
-
-Multi-cloud support (Azure, GCP)
-
-🧾 Requirements (for reference)
-fastapi
-uvicorn
-boto3
-pandas
-scikit-learn
-python-dotenv
-requests
-streamlit
-plotly
-
-🎯 Example Output Preview
-
-Slack alert example:
-
+```
 🚨 AWS Cost Anomaly Detected
 Date: 2025-09-01
 Impact: $8.17
-EC2 – Other: +$1.2
-Tax: +$6.05
-Elastic Compute Cloud: +$0.9
+• EC2 – Other: +$1.20
+• Tax: +$6.05
+• Elastic Compute Cloud: +$0.90
+```
 
+---
 
+## Security & Best Practices
 
+- .env — Never commit credentials; add `.env` to `.gitignore`.
+- Slack webhook — Treat the URL as a secret; rotate periodically.
+- AWS IAM — Use least-privileged credentials or an IAM role with permissions scoped to `ce:GetCostAndUsage`.
+- FastAPI — Add authentication and rate limiting before exposing publicly.
+- Streamlit — Protect dashboards behind auth or a proxy when deployed.
+- State file — If using a local file for de-duplication, lock permissions or store signatures in a database for multi-instance setups.
+- Dependencies — Regularly scan with pip-audit or safety.
 
+---
 
+## Example Workflow
 
+1. FastAPI pulls Cost Explorer data via /spend/summary.
+2. /anomalies runs IsolationForest over the recent window.
+3. /anomalies/notify posts detected anomalies to Slack.
+4. Streamlit dashboard visualizes spend + anomalies.
+5. An hourly job can automate the previous steps and de-duplicate alerts.
 
-requirements.txt             → Dependencies
-README.md                    → Documentation
+---
+
+## Roadmap
+
+Planned items:
+- v1.0: Core detection, Slack alerts, Streamlit dashboard (current)
+- v2.0: NAT Gateway & Elastic IP cost tracking, AI forecasting (Prophet/ARIMA), live Slack trigger from dashboard, authentication for public deployments
+- Future: Multi-cloud support (Azure, GCP), Kubernetes/serverless deployment
+
+---
+
+## Files of Interest
+
+- requirements.txt — Python dependencies
+- README.md — This documentation
+- app/ — FastAPI backend source
+- dashboard/ — Streamlit dashboard source
+- jobs/ — Scheduled job helpers
+
+---
+
+## Contributing
+
+Pull requests welcome. If you'd like to contribute:
+- Open an issue to discuss major changes
+- Fork the repo and make small, focused PRs
+- Keep secrets out of commits
+
+Suggestions for contributions:
+- Cost forecasting models
+- Better alerting rules and thresholds
+- Secure deployment (auth, containerization)
+- Multi-cloud support
+
+---
+
+## Author
+
+Iftekhar “Joy” Islam  
+DevOps • AI • Cloud Engineer — https://imjoy.me
+
+---
+
+## License
+
+MIT License — free to use, modify, and share.
