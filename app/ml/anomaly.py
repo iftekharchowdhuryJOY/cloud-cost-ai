@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
+
 def detect_anomalies_isoforest(df: pd.DataFrame, contamination=0.15):
     """
     Detect day-level anomalies via IsolationForest.
@@ -25,3 +26,5 @@ def detect_anomalies_isoforest(df: pd.DataFrame, contamination=0.15):
 
     score_map = {pivot.index[i]: float(scores[i]) for i in range(len(scores))}
     return score_map, flagged_days, trend_breaks
+
+
