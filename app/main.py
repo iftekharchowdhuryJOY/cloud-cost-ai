@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from app.services.cost_explorer import get_spend_timeseries_by_service
 from app.ml.anomaly import detect_anomalies_isoforest
 from fastapi import Query
-
+from app.services.slack_notifier import send_slack_alert
+from dotenv import load_dotenv
+load_dotenv()
 
 app = FastAPI(title="Cloud cost optimizer", version="0.1.0")
 
@@ -68,3 +70,19 @@ def spend_monthly(months: int = 6):
     df["month"] = pd.to_datetime(df["day"]).dt.to_period("M")
     monthly = df.groupby("month", as_index=False)["cost"].sum()
     return monthly.to_dict(orient="records")
+
+@app.get("/anomalies/notify")
+def anomalies_notify(days: int = 120, minImpact: float = 0.1):
+    data = anomalies(days=days, minImpact=minImpact)
+    results = data["results"]
+    if not results:
+        return {"status": "no anomalies"}
+
+    latest = results[0]
+    msg = (
+        f"• Date: {latest['day']}\n"
+        f"• Impact: ${latest['impact_usd']}\n"
+        + "\n".join([f"• {s['name']}: +${s['delta_usd']}" for s in latest["top_services"]])
+    )
+    send_slack_alert("AWS Cost Anomaly Detected", msg, "🚨")
+    return {"status": "sent", "alert": latest}
