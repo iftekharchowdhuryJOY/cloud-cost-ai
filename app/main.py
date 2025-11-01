@@ -3,6 +3,7 @@ from app.services.cost_explorer import get_spend_timeseries_by_service
 from app.ml.anomaly import detect_anomalies_isoforest
 from fastapi import Query
 from app.services.slack_notifier import send_slack_alert
+from app.jobs.budget_guard import check_budget_forecast
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -86,3 +87,37 @@ def anomalies_notify(days: int = 120, minImpact: float = 0.1):
     )
     send_slack_alert("AWS Cost Anomaly Detected", msg, "🚨")
     return {"status": "sent", "alert": latest}
+
+@app.get("/forecast/budget")
+def forecast_budget_check():
+    """
+    Manually trigger a predictive budget forecast check.
+    Returns the forecasted next-day spend and whether it breaches the budget.
+    """
+    from datetime import datetime, timedelta
+    import pandas as pd
+    from app.ml.forecast import train_and_forecast
+
+    r = requests.get(f"{API_BASE}/spend/summary?days=90")
+    df = pd.DataFrame(r.json()["results"])
+    if df.empty:
+        return {"status": "no_data", "message": "No cost data available."}
+
+    forecast = train_and_forecast(df, 7)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
+    tomorrow_row = forecast[forecast["ds"].dt.date == tomorrow]
+
+    if tomorrow_row.empty:
+        return {"status": "no_forecast", "message": "No forecast for tomorrow."}
+
+    pred = float(tomorrow_row["yhat"].values[0])
+    breach = pred > BUDGET_LIMIT
+    if breach:
+        send_slack_alert(f"⚠️ Predicted spend for tomorrow is ${pred:.2f} (> ${BUDGET_LIMIT:.2f})")
+
+    return {
+        "forecast_date": str(tomorrow),
+        "predicted_usd": round(pred, 2),
+        "budget_limit_usd": BUDGET_LIMIT,
+        "breach": breach
+    }
