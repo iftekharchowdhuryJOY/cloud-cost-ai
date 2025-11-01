@@ -1,214 +1,231 @@
-# ☁️ Cloud Cost AI
-
-AI-powered AWS cost analyzer and anomaly detector — built with FastAPI, Python, Streamlit, and lightweight ML (IsolationForest). Cloud Cost AI helps you catch unexpected spend, analyze daily service usage, and receive Slack alerts when costs spike.
-
----
-
-## Overview
-
-Cloud Cost AI monitors AWS Cost Explorer data, runs anomaly detection to find unusual spending patterns, and notifies your team via Slack. It's aimed at:
-
-- DevOps engineers and students experimenting with the AWS free tier
-- Startups keeping close watch on cloud spend
-- Small teams that want AI-driven cost visibility without enterprise FinOps tools
+# ☁️ Cloud Cost Optimizer AI
+**Real-time AWS Cost Insights + AI Forecast + Slack Control**  
+Monitor AWS spending, detect anomalies, forecast future costs, and receive proactive alerts before your budget burns.
 
 ---
 
-## Features
+## 🌟 Overview
 
-- Daily cost summary: fetches Cost Explorer data (GetCostAndUsage), grouped by day and service  
-- AI-powered anomaly detection: IsolationForest to surface spikes and trend breaks  
-- Slack alerts: customizable threshold and minimum-impact filter  
-- Interactive dashboard: Streamlit + Plotly for visualizations and drill-downs  
-- Hourly notifier: background job or scheduler with simple de-duplication using local state
+Cloud Cost Optimizer AI is an **AI-powered FinOps dashboard** that brings visibility, prediction, and automation to your AWS cloud costs.
 
----
-
-## Architecture
-
-High-level layout:
-
-```text
-FastAPI Backend (app/)
-│
-├── main.py                  → API entrypoint
-│   ├── /spend/summary       → Fetch AWS Cost Explorer (boto3)
-│   ├── /anomalies           → Detect anomalies (IsolationForest)
-│   └── /anomalies/notify    → Push alerts to Slack
-│
-├── ml/
-│   └── anomaly.py           → Anomaly detection logic
-│
-├── services/
-│   └── slack_notifier.py    → Slack webhook integration
-│
-└── jobs/
-    └── hourly_notify.py     → Hourly scheduler to auto-send alerts
-
-Streamlit Frontend (dashboard/)
-├── app.py                   → Interactive dashboard that fetches the API
-.env                         → Local secrets (AWS + Slack)
-.state/                      → Stores last alert signature (for de-dup)
-```
+It continuously analyzes AWS Cost Explorer data, detects **cost anomalies** using machine learning (Isolation Forest), and **forecasts upcoming spend** using Facebook Prophet.  
+Slack integration ensures you get alerts instantly — before surprises hit your credit card.
 
 ---
 
-## Quick Start
+## 🧠 Features
 
-Prerequisites:
-- Python 3.9+
-- An AWS account with Cost Explorer enabled
-- Slack webhook (optional, for alerts)
+- ✅ **AWS Cost Visualization** — Real-time cost breakdown by service  
+- ⚠️ **Anomaly Detection** — Detects sudden or abnormal cost spikes  
+- 📈 **Forecasting (Prophet)** — Predicts upcoming AWS bills (next 7 days)  
+- 💳 **Budget Tracking** — Shows cumulative spend, burn rate, and top services  
+- 🔔 **Slack Alerts** — Sends automatic anomaly notifications  
+- 🧩 **FastAPI Backend + Streamlit Dashboard** — Seamless and modular  
+- 🤖 **AI Core** — Isolation Forest + Prophet for pattern learning and prediction
 
-1. Clone the repo
+---
+
+## 🏗️ Architecture
+
+                    ┌────────────────────────────┐
+                    │     AWS Cost Explorer      │
+                    └────────────┬───────────────┘
+                                 │
+                                 ▼
+                    ┌────────────────────────────┐
+                    │        FastAPI API         │
+                    │  /spend, /anomalies, /ml   │
+                    └────────────┬───────────────┘
+                                 │
+                                 ▼
+                    ┌────────────────────────────┐
+                    │     ML Engine (AI Core)    │
+                    │ IsolationForest + Prophet  │
+                    └────────────┬───────────────┘
+                                 │
+                                 ▼
+                    ┌────────────────────────────┐
+                    │     Streamlit Dashboard    │
+                    │  Spend | Anomalies | Slack │
+                    └────────────┬─────────────┘
+                                 │
+                                 ▼
+                    ┌────────────────────────────┐
+                    │   Slack Notifications Bot  │
+                    └────────────────────────────┘
+
+---
+
+## 📊 Dashboard & Alerts Preview
+
+Below are sample screenshots showing the dashboard and alerting experience. The Slack screenshot at the top gives an immediate sense of what alerts look like in-channel.
+
+<p align="center">
+  <img src="https://github.com/iftekharchowdhuryJOY/cloud-cost-ai/blob/main/docs/img/dashboard.png" width="90%" alt="Spend Overview">
+  <br>
+  <em>💵 Spend Overview — Real-time AWS spend by service</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/iftekharchowdhuryJOY/cloud-cost-ai/blob/main/docs/img/anomalies.png" width="90%" alt="Anomaly Detection">
+  <br>
+  <em>⚠️ Anomaly Detection — AI-driven cost spikes by day/service</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/iftekharchowdhuryJOY/cloud-cost-ai/blob/main/docs/img/aws_cost_forecast.png" width="90%" alt="Forecast">
+  <br>
+  <em>📈 Forecast — Prophet-based 7-day AWS spend prediction</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/iftekharchowdhuryJOY/cloud-cost-ai/blob/main/docs/img/daily_burn.png" width="90%" alt="Daily burn">
+  <br>
+  <em>💳 Budget & Burn — Daily usage and top costly services</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/iftekharchowdhuryJOY/cloud-cost-ai/blob/main/docs/img/slack_aleart.png" width="90%" alt="Slack integration screenshot">
+  <br>
+  <em>🔔 Slack Integration — One-click anomaly alerts</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/iftekharchowdhuryJOY/cloud-cost-ai/blob/main/docs/img/slack_screenshot.png" width="90%" alt="Slack notification">
+  <br>
+  <em>🔔 Slack Notification</em>
+</p>
+---
+
+## ⚙️ Setup Guide
+
+### 1️⃣ Clone the Repository
 ```bash
 git clone https://github.com/iftekharchowdhuryJOY/cloud-cost-ai.git
 cd cloud-cost-ai
-```
-
-2. Create & activate a virtual environment
-(Windows example)
-```bash
 python -m venv .venv
-.\.venv\Scripts\activate
-```
-(Unix/macOS example)
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-3. Install dependencies
-```bash
+source .venv/bin/activate    # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
-or manually:
+
+### 2️⃣ AWS Credentials
+
+Create or update `~/.aws/credentials`:
+```ini
+[default]
+aws_access_key_id = YOUR_KEY
+aws_secret_access_key = YOUR_SECRET
+region = ca-central-1
+```
+
+### 3️⃣ Environment Variables
+
+Export your Slack webhook (example):
 ```bash
-pip install fastapi uvicorn boto3 pandas scikit-learn python-dotenv requests streamlit plotly
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/XXX/YYY/ZZZ"
 ```
 
-4. Configure environment variables
+### 4️⃣ Run the Services
 
-Create a `.env` file in the project root (do NOT commit this file):
-
-```
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-AWS_DEFAULT_REGION=us-east-1
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXXX/YYYY/ZZZZ
-```
-
-5. Run the FastAPI backend
+Start FastAPI:
 ```bash
 uvicorn app.main:app --reload --port 8080
 ```
-Open API docs: http://localhost:8080/docs
 
-6. Run the Streamlit dashboard
+Start the Streamlit dashboard:
 ```bash
-cd dashboard
-streamlit run app.py
+streamlit run dashboard/app.py
 ```
-Open the dashboard: http://localhost:8501
 
-7. (Optional) Start hourly notifier
+Run scheduled job manually (budget guard example):
 ```bash
-python jobs/hourly_notify.py
+python -m app.jobs.budget_guard
 ```
-Or schedule `jobs/hourly_notify.py` with your OS scheduler (cron, Task Scheduler, etc.).
 
----
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|---------:|:------:|:------------|
-| /spend/summary?days=30 | GET | Returns daily spend per AWS service |
-| /anomalies?days=120&minimpact=0.1 | GET | Runs anomaly detection and returns anomalies |
-| /anomalies/notify | POST | Sends top anomaly to Slack (or send payload) |
-
-Notes:
-- Adjust `days` and `minimpact` query parameters for different time windows and sensitivity.
-- /anomalies/notify should be protected or used internally; consider adding API key middleware for production.
-
----
-
-## Example Slack Alert
-
+Example output:
 ```
-🚨 AWS Cost Anomaly Detected
-Date: 2025-09-01
-Impact: $8.17
-• EC2 – Other: +$1.20
-• Tax: +$6.05
-• Elastic Compute Cloud: +$0.90
+📊 Forecasted spend for 2025-11-02: $0.13
+✅ Forecast $0.13 within budget ($10.00).
 ```
 
 ---
 
-## Security & Best Practices
+## 📁 Project Structure
 
-- .env — Never commit credentials; add `.env` to `.gitignore`.
-- Slack webhook — Treat the URL as a secret; rotate periodically.
-- AWS IAM — Use least-privileged credentials or an IAM role with permissions scoped to `ce:GetCostAndUsage`.
-- FastAPI — Add authentication and rate limiting before exposing publicly.
-- Streamlit — Protect dashboards behind auth or a proxy when deployed.
-- State file — If using a local file for de-duplication, lock permissions or store signatures in a database for multi-instance setups.
-- Dependencies — Regularly scan with pip-audit or safety.
+Add this project layout to README to make the repo structure clear:
 
----
-
-## Example Workflow
-
-1. FastAPI pulls Cost Explorer data via /spend/summary.
-2. /anomalies runs IsolationForest over the recent window.
-3. /anomalies/notify posts detected anomalies to Slack.
-4. Streamlit dashboard visualizes spend + anomalies.
-5. An hourly job can automate the previous steps and de-duplicate alerts.
-
----
-
-## Roadmap
-
-Planned items:
-- v1.0: Core detection, Slack alerts, Streamlit dashboard (current)
-- v2.0: NAT Gateway & Elastic IP cost tracking, AI forecasting (Prophet/ARIMA), live Slack trigger from dashboard, authentication for public deployments
-- Future: Multi-cloud support (Azure, GCP), Kubernetes/serverless deployment
-
----
-
-## Files of Interest
-
-- requirements.txt — Python dependencies
-- README.md — This documentation
-- app/ — FastAPI backend source
-- dashboard/ — Streamlit dashboard source
-- jobs/ — Scheduled job helpers
+```
+cloud-cost-optimizer/
+├── app/
+│   ├── actions/                # (optional) future automations
+│   ├── jobs/                   # scheduled jobs
+│   ├── ml/                     # ML modules (anomaly, forecast)
+│   ├── services/               # slack notifier, helpers
+│   └── main.py                 # FastAPI app
+│
+├── dashboard/
+│   ├── app.py                  # Streamlit entry
+│   ├── budget_ui.py            # Budget & burn tab
+│   ├── forecast.py             # Forecast tab
+│   └── slack_ui.py             # Slack trigger UI
+│
+├── docs/
+│   └── img/
+│       ├── anomalies.png
+│       ├── aws_cost_forecast.png
+│       ├── daily_burn.png
+│       ├── dashboard.png
+│       └── slack_aleart.png    # (kept filename as-is)
+│
+├── Dockerfile
+├── README.md
+└── requirements.txt
+```
 
 ---
 
-## Contributing
+## 📢 Tech Stack
 
-Pull requests welcome. If you'd like to contribute:
-- Open an issue to discuss major changes
-- Fork the repo and make small, focused PRs
-- Keep secrets out of commits
-
-Suggestions for contributions:
-- Cost forecasting models
-- Better alerting rules and thresholds
-- Secure deployment (auth, containerization)
-- Multi-cloud support
-
----
-
-## Author
-
-<b>JOY</b>
-DevOps • AI • Cloud Engineer — https://imjoy.me
+| Layer | Technology |
+|-------|------------|
+| Backend API | FastAPI |
+| Frontend Dashboard | Streamlit |
+| ML / Forecasting | scikit-learn, Prophet |
+| Data Source | AWS Cost Explorer (Boto3) |
+| Notifications | Slack Webhooks |
+| Scheduler | APScheduler / Cron |
+| Infra (Optional) | Docker, Terraform |
 
 ---
 
-## License
+## 🔒 Security & Best Practices
 
-MIT License — free to use, modify, and share.
+- Never commit AWS keys or Slack webhooks to the repo. Use environment variables or secrets managers.
+- Use IAM roles with least privilege for Cost Explorer access.
+- Rotate credentials regularly.
+- Limit Slack webhook exposure and rotate if leaked.
+
+---
+
+## 🧭 Workflow
+
+- Data ingestion: scheduled jobs query AWS Cost Explorer
+- ML pipeline: preprocess → train IsolationForest → detect anomalies → forecast with Prophet
+- Alerting: Slack webhook triggered on anomalies or budget threshold breaches
+- Dashboard: Streamlit reads API endpoints to display live data
+
+---
+
+## 🧠 Author
+
+Iftekhar Joy  
+DevOps + AI Builder | LinkedIn  
+Website: imjoy.me
+
+---
+
+## 💬 License
+
+MIT License © 2025 Iftekhar Joy
+
+“AI should make DevOps proactive, not reactive.” — Joy
