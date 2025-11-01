@@ -4,6 +4,8 @@ from app.ml.anomaly import detect_anomalies_isoforest
 from fastapi import Query
 from app.services.slack_notifier import send_slack_alert
 from app.jobs.budget_guard import check_budget_forecast
+import logging
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -121,3 +123,9 @@ def forecast_budget_check():
         "budget_limit_usd": BUDGET_LIMIT,
         "breach": breach
     }
+    
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("cloud-cost-optimizer")
