@@ -207,6 +207,7 @@ cloud-cost-optimizer/
 
 ---
 
+
 ## 🧭 Workflow
 
 - Data ingestion: scheduled jobs query AWS Cost Explorer
@@ -216,11 +217,46 @@ cloud-cost-optimizer/
 
 ---
 
-## 🧠 Author
+## 🔔 Automation Example (Every Hour)
+**If using cron or hosted service:
+```bash
+0 * * * * /path/to/.venv/bin/python /app/jobs/budget_guard.py
+```
+## 🧩 Future Roadmap (v2)
 
-Iftekhar Joy  
-DevOps + AI Builder | LinkedIn  
-Website: imjoy.me
+- AWS service-level drilldown
+  - EC2 — cost by instance type, reservations, spot vs on-demand
+  - S3 — storage classes, lifecycle costs, access patterns
+  - NAT Gateway — per-hour and per-GB egress breakdown
+- GPT-based cost explanation
+  - Natural-language answers to “Why did my bill increase?”
+  - Automated plain-English summaries and suggested remediations
+- Multi-cloud support (GCP, Azure)
+  - Unified ingestion and normalized metrics across providers
+- Enhanced forecasting with seasonal trends
+  - Improve Prophet models with seasonality, holidays, and confidence intervals
+- Voice alert integration
+  - Push critical alerts via voice (IVR or smart assistants) and escalation policies
+
+## Contributing
+
+Pull requests welcome. If you'd like to contribute:
+- Open an issue to discuss major changes
+- Fork the repo and make small, focused PRs
+- Keep secrets out of commits
+
+## Suggestions for contributions:
+- Cost forecasting models
+- Better alerting rules and thresholds
+- Secure deployment (auth, containerization)
+- Multi-cloud support
+
+---
+
+## Author
+
+<b>JOY</b>
+DevOps • AI • Cloud Engineer — https://imjoy.me
 
 ---
 
@@ -228,4 +264,4 @@ Website: imjoy.me
 
 MIT License © 2025 Iftekhar Joy
 
-“AI should make DevOps proactive, not reactive.” — Joy
+> **“AI should make DevOps proactive, not reactive.” — Joy**
