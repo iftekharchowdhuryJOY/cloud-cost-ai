@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 from slack_ui import slack_trigger_tab
 from forecast import forecast_tab
+from budget_ui import budget_tab 
 
 API_BASE = "http://localhost:8080"
 
@@ -12,7 +13,8 @@ st.set_page_config(page_title="Cloud Cost AI Dashboard", layout="wide")
 st.title("☁️ Cloud Cost AI Dashboard")
 st.caption("Real-time AWS Cost Insights + AI Forecast + Slack Control")
 
-tab1, tab2, tab3 = st.tabs(["💵 Spend Overview", "⚠️ Anomalies", "🚨 Slack / Forecast"])
+tab1, tab2, tab3, tab4 = st.tabs(["💵 Spend Overview", "⚠️ Anomalies", "🚨 Slack / Forecast", "💳 Budget"])
+
 
 # ---------- Spend Overview ----------
 with tab1:
@@ -53,3 +55,6 @@ with tab3:
     slack_trigger_tab()
     st.divider()
     forecast_tab()
+# ---------- Budget & Burn ----------
+with tab4:
+    budget_tab()
