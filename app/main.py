@@ -1,28 +1,38 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
+from dotenv import load_dotenv
+import os
+import logging
+import pandas as pd
+
 from app.services.cost_explorer import get_spend_timeseries_by_service
 from app.ml.anomaly import detect_anomalies_isoforest
-from fastapi import Query
 from app.services.slack_notifier import send_slack_alert
 from app.jobs.budget_guard import check_budget_forecast
-import logging
 
-from dotenv import load_dotenv
 load_dotenv()
 
-app = FastAPI(title="Cloud cost optimizer", version="0.1.0")
+app = FastAPI(title="Cloud Cost Optimizer", version="0.1.0")
+
+# --- Global Settings ---
+USE_AWS = os.getenv("USE_AWS", "true").lower() == "true"
+BUDGET_LIMIT = float(os.getenv("BUDGET_LIMIT", "10.00"))
+
+# --- Logging Setup ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("cloud-cost-optimizer")
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "message": "API is alive"}
+    return {"status": "ok", "message": "API is alive", "safe_mode": not USE_AWS}
 
 @app.get("/spend/summary")
 def spend_summary(days: int = 30):
-    """
-    Returns AWS daily cost by service for the given number of days.
-    """
     df = get_spend_timeseries_by_service(days=days)
     if df.empty:
-        return {"message": "No data returned. Check cost explorer access."}
+        return {"message": "SAFE MODE: No data fetched from AWS.", "results": []}
     result = (
         df.groupby(["day", "service"], as_index=False)["cost"]
         .sum()
@@ -31,20 +41,16 @@ def spend_summary(days: int = 30):
     )
     return {"days": days, "results": result}
 
-# another endpoint: /anomalies would go here
 @app.get("/anomalies")
 def anomalies(days: int = 120, minImpact: float = 0):
-    """
-    Detect AI-based cost anomalies and trend breaks.
-    """
     df = get_spend_timeseries_by_service(days=days)
     if df.empty:
-        return {"anomalies": []}
+        return {"anomalies": [], "message": "SAFE MODE active — no anomalies."}
 
     scores, flagged, trend_breaks = detect_anomalies_isoforest(df)
 
     pivot = df.pivot_table(index="day", columns="service", values="cost", aggfunc="sum").fillna(0)
-    med   = pivot.rolling(window=7, min_periods=1).median()
+    med = pivot.rolling(window=7, min_periods=1).median()
     delta = (pivot - med).clip(lower=0).sum(axis=1)
 
     results = []
@@ -67,15 +73,11 @@ def anomalies(days: int = 120, minImpact: float = 0):
     results.sort(key=lambda x: x["impact_usd"], reverse=True)
     return {"lookback_days": days, "count": len(results), "results": results}
 
-@app.get("/spend/monthly")
-def spend_monthly(months: int = 6):
-    df = get_spend_timeseries_by_service(days=30*months)
-    df["month"] = pd.to_datetime(df["day"]).dt.to_period("M")
-    monthly = df.groupby("month", as_index=False)["cost"].sum()
-    return monthly.to_dict(orient="records")
-
 @app.get("/anomalies/notify")
 def anomalies_notify(days: int = 120, minImpact: float = 0.1):
+    if not USE_AWS:
+        return {"status": "SAFE_MODE", "message": "AWS API disabled."}
+
     data = anomalies(days=days, minImpact=minImpact)
     results = data["results"]
     if not results:
@@ -90,42 +92,11 @@ def anomalies_notify(days: int = 120, minImpact: float = 0.1):
     send_slack_alert("AWS Cost Anomaly Detected", msg, "🚨")
     return {"status": "sent", "alert": latest}
 
-@app.get("/forecast/budget")
-def forecast_budget_check():
-    """
-    Manually trigger a predictive budget forecast check.
-    Returns the forecasted next-day spend and whether it breaches the budget.
-    """
-    from datetime import datetime, timedelta
-    import pandas as pd
-    from app.ml.forecast import train_and_forecast
-
-    r = requests.get(f"{API_BASE}/spend/summary?days=90")
-    df = pd.DataFrame(r.json()["results"])
-    if df.empty:
-        return {"status": "no_data", "message": "No cost data available."}
-
-    forecast = train_and_forecast(df, 7)
-    tomorrow = datetime.utcnow().date() + timedelta(days=1)
-    tomorrow_row = forecast[forecast["ds"].dt.date == tomorrow]
-
-    if tomorrow_row.empty:
-        return {"status": "no_forecast", "message": "No forecast for tomorrow."}
-
-    pred = float(tomorrow_row["yhat"].values[0])
-    breach = pred > BUDGET_LIMIT
-    if breach:
-        send_slack_alert(f"⚠️ Predicted spend for tomorrow is ${pred:.2f} (> ${BUDGET_LIMIT:.2f})")
-
-    return {
-        "forecast_date": str(tomorrow),
-        "predicted_usd": round(pred, 2),
-        "budget_limit_usd": BUDGET_LIMIT,
-        "breach": breach
-    }
-    
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-logger = logging.getLogger("cloud-cost-optimizer")
+# --- Disable Scheduler in SAFE MODE ---
+if USE_AWS:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(check_budget_forecast, "interval", hours=1)
+    scheduler.start()
+else:
+    print("⚠️ SAFE MODE ENABLED — Scheduler not started.")
