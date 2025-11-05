@@ -5,11 +5,34 @@ import plotly.express as px
 from slack_ui import slack_trigger_tab
 from forecast import forecast_tab
 from budget_ui import budget_tab 
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+
 
 API_BASE = "http://localhost:8080"
 
 st.set_page_config(page_title="Cloud Cost AI Dashboard", layout="wide")
+# --- SAFE MODE Banner ---
+USE_AWS = os.getenv("USE_AWS", "true").lower() == "true"
 
+if not USE_AWS:
+    st.markdown(
+        """
+       <div style='background-color:#FFF3CD;
+                    color:#856404;
+                    padding:6px 10px;
+                    border-radius:8px;
+                    border:1px solid #FFEEBA;
+                    text-align:center;
+                    font-size:14px;'>
+            🟡 <b>SAFE MODE</b>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 st.title("☁️ Cloud Cost AI Dashboard")
 st.caption("Real-time AWS Cost Insights + AI Forecast + Slack Control")
 
