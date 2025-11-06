@@ -126,3 +126,54 @@ def get_cost_data(
     except Exception as e:
         logging.error(f"❌ Error fetching cost data: {e}")
         return pd.DataFrame(columns=["day", "service", "cost", "region"])
+
+def get_resource_level_cost(start: str, end: str, service: str = None, region: str = None):
+    """
+    Fetch AWS cost data grouped by resource ID for a specific date range.
+    Optionally filter by service or region.
+    """
+    if not USE_AWS or client is None:
+        logging.info("SAFE MODE active – returning empty dataframe instead of AWS data.")
+        return pd.DataFrame(columns=["day", "service", "resource_id", "cost"])
+
+    # ✅ Only two allowed: SERVICE and RESOURCE_ID
+    group_by = [
+        {"Type": "DIMENSION", "Key": "SERVICE"},
+        {"Type": "DIMENSION", "Key": "RESOURCE_ID"},
+    ]
+
+    try:
+        response = client.get_cost_and_usage(
+            TimePeriod={"Start": start, "End": end},
+            Granularity="DAILY",
+            Metrics=["UnblendedCost"],
+            GroupBy=group_by,
+        )
+
+        data = []
+        for day_block in response["ResultsByTime"]:
+            day = day_block["TimePeriod"]["Start"]
+            for g in day_block.get("Groups", []):
+                keys = g["Keys"]
+                svc, resource_id = keys[:2]
+                cost = float(g["Metrics"]["UnblendedCost"]["Amount"])
+                data.append({
+                    "day": day,
+                    "service": svc,
+                    "resource_id": resource_id,
+                    "cost": cost
+                })
+
+        df = pd.DataFrame(data)
+
+        # Optional post-filtering
+        if not df.empty:
+            df["day"] = pd.to_datetime(df["day"]).dt.date
+            if service:
+                df = df[df["service"].str.contains(service, case=False, na=False)]
+
+        return df
+
+    except Exception as e:
+        logging.error(f"❌ Error fetching resource-level cost data: {e}")
+        return pd.DataFrame(columns=["day", "service", "resource_id", "cost"])
