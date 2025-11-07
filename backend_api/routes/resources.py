@@ -1,21 +1,10 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 from app.services.cost_explorer import get_resource_level_cost
-from pydantic import BaseModel, Field
-from datetime import date
-from typing import List
+from backend_api.models.resources import ResourceCostResponse
+import pandas as pd
 
 router = APIRouter(tags=["resources"])
-
-class ResourceCostItem(BaseModel):
-    day: date = Field(..., example="2025-11-01")
-    service: str = Field(..., example="Amazon EC2")
-    resource_id: str = Field(..., example="i-0abcd1234")
-    region: str = Field(..., example="ca-central-1")
-    cost: float = Field(..., example=3.45)
-
-class ResourceCostResponse(BaseModel):
-    data: List[ResourceCostItem]
 
 @router.get("/costs/resources", response_model=ResourceCostResponse)
 def resource_costs(
@@ -25,7 +14,20 @@ def resource_costs(
     region: Optional[str] = Query(None, description="Filter by region"),
 ):
     """
-    Returns AWS cost data grouped by resource ID.
+    Returns AWS cost data grouped by resource ID for the given date range.
+    If resource-level data isn't yet enabled in Cost Explorer, the response will
+    include a helpful message.
     """
     df = get_resource_level_cost(start, end, service, region)
-    return {"data": df.to_dict(orient="records")}
+
+    if isinstance(df, pd.DataFrame) and not df.empty:
+        return {"data": df.to_dict(orient="records")}
+    else:
+        return {
+            "data": [],
+            "message": (
+                "No resource-level cost data returned. "
+                "If you just enabled resource-level data, AWS may need up to 24 hours "
+                "to generate detailed results."
+            ),
+        }
