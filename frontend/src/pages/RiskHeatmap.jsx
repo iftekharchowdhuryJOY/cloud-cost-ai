@@ -86,67 +86,73 @@ export default function RiskHeatmap() {
         backgroundImage: "linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)",
       }}
     >
-      {/* Header */}
+      {/* Header - Full width with centered content */}
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: "40px",
-          paddingBottom: "24px",
-          borderBottom: "2px solid #e5e7eb",
+          backgroundColor: "white",
+          borderBottom: "1px solid #e5e7eb",
+          padding: "40px",
         }}
       >
-        <div>
-          <h1
-            style={{
-              fontSize: "42px",
-              fontWeight: "800",
-              color: "#1f2937",
-              marginBottom: "8px",
-              backgroundImage: "linear-gradient(135deg, #1f2937 0%, #374151 100%)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Risk Heatmap Dashboard
-          </h1>
-          <p style={{ color: "#6b7280", fontSize: "16px", fontWeight: "500" }}>
-            Service risk visualization with real-time metrics
-          </p>
-        </div>
-        <button
-          onClick={fetchHeatmap}
+        <div
           style={{
-            paddingLeft: "28px",
-            paddingRight: "28px",
-            paddingTop: "12px",
-            paddingBottom: "12px",
-            backgroundColor: "#3b82f6",
-            color: "white",
-            fontWeight: "700",
-            fontSize: "14px",
-            borderRadius: "8px",
-            border: "none",
-            cursor: "pointer",
-            transition: "all 0.3s",
-            boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)",
-          }}
-          onMouseOver={(e) => {
-            e.target.style.backgroundColor = "#2563eb";
-            e.target.style.transform = "translateY(-2px)";
-          }}
-          onMouseOut={(e) => {
-            e.target.style.backgroundColor = "#3b82f6";
-            e.target.style.transform = "translateY(0)";
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
           }}
         >
-          🔄 Refresh
-        </button>
+          <div>
+            <h1
+              style={{
+                fontSize: "42px",
+                fontWeight: "800",
+                color: "#1f2937",
+                marginBottom: "8px",
+                backgroundImage: "linear-gradient(135deg, #1f2937 0%, #374151 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Risk Heatmap Dashboard
+            </h1>
+            <p style={{ color: "#6b7280", fontSize: "16px", fontWeight: "500", margin: "0" }}>
+              Service risk visualization with real-time metrics
+            </p>
+          </div>
+          <button
+            onClick={fetchHeatmap}
+            style={{
+              paddingLeft: "28px",
+              paddingRight: "28px",
+              paddingTop: "12px",
+              paddingBottom: "12px",
+              backgroundColor: "#3b82f6",
+              color: "white",
+              fontWeight: "700",
+              fontSize: "14px",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              transition: "all 0.3s",
+              boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)",
+            }}
+            onMouseOver={(e) => {
+              e.target.style.backgroundColor = "#2563eb";
+              e.target.style.transform = "translateY(-2px)";
+            }}
+            onMouseOut={(e) => {
+              e.target.style.backgroundColor = "#3b82f6";
+              e.target.style.transform = "translateY(0)";
+            }}
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
 
       {/* Summary Stats */}
+      <div style={{ padding: "0 40px" }}>
       {summary && (
         <div
           style={{
@@ -193,12 +199,14 @@ export default function RiskHeatmap() {
         </div>
       )}
 
+      </div>
+
       {/* Filters & Sort */}
+      <div style={{ padding: "0 40px", marginBottom: "24px" }}>
       <div
         style={{
           display: "flex",
           gap: "16px",
-          marginBottom: "24px",
           alignItems: "center",
           backgroundColor: "white",
           padding: "16px 20px",
@@ -247,8 +255,10 @@ export default function RiskHeatmap() {
           Showing {filteredData.length} of {heatmapData.length} services
         </div>
       </div>
+      </div>
 
       {/* Heatmap Grid */}
+      <div style={{ padding: "0 40px 40px 40px" }}>
       {filteredData.length === 0 ? (
         <div
           style={{
@@ -265,8 +275,8 @@ export default function RiskHeatmap() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: "20px",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "24px",
           }}
         >
           {filteredData.map((service, idx) => (
@@ -419,6 +429,7 @@ export default function RiskHeatmap() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }
