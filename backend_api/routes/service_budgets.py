@@ -41,7 +41,7 @@ def update_budget(data: BudgetUpdate, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/budget/services/usage", response_model={"services": list[ServiceBudgetResponse]})
+@router.get("/budget/services/usage")
 def service_usage(db: Session = Depends(get_db)):
     """Get usage vs budget for all services."""
     df = get_spend_timeseries_by_service(days=30)
