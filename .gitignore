@@ -26,6 +26,11 @@ __pycache__/
 .state/
 .cache/
 
+# Database files
+.data/
+*.db
+*.sqlite
+
 # OS files
 .DS_Store
 Thumbs.db
