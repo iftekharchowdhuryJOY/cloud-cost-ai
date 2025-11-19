@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend_api.routes import costs, resources, anomalies, budget, service_budgets
+from app.db.database import init_db
+from app.db.service import BudgetService
+from app.db.database import SessionLocal
 
 
 app = FastAPI(title="Cloud Cost AI v2 API", version="0.1.0")
@@ -13,6 +16,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Initialize database on startup
+@app.on_event("startup")
+def startup():
+    """Create database tables and set default budgets on app startup."""
+    init_db()
+    
+    # Set default budgets if they don't exist
+    db = SessionLocal()
+    try:
+        defaults = {
+            "AmazonEC2": 10,
+            "Amazon Simple Storage Service": 5,
+            "AWS Lambda": 2,
+            "AmazonCloudWatch": 3,
+        }
+        BudgetService.bulk_set_defaults(db, defaults)
+        print("✅ Database initialized with default budgets")
+    finally:
+        db.close()
+
 
 @app.get("/")
 def root():

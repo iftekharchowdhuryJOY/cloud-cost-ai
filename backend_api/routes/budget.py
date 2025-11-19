@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from datetime import datetime, timezone
+from sqlalchemy.orm import Session
 import calendar
 import json
 import pathlib
@@ -7,6 +8,8 @@ import hashlib
 
 from app.services.cost_explorer import get_spend_timeseries_by_service
 from app.services.slack_notifier import send_slack_alert
+from app.db.database import get_db
+from app.db.service import BudgetService
 
 router = APIRouter(tags=["budget"])
 
@@ -35,27 +38,19 @@ def hash_alert(status, actual, projected, budget):
     payload = f"{status}:{actual:.2f}:{projected:.2f}:{budget:.2f}"
     return hashlib.md5(payload.encode()).hexdigest()
 
-# ------------------------------------------
-# 🔥 Per-Service Monthly Budgets (Adjust freely)
-# ------------------------------------------
-SERVICE_BUDGETS = {
-    "AmazonEC2": 0.01,
-    "Amazon Simple Storage Service": 0.01,
-    "AWS Lambda": 0.5,
-    "AmazonNATGateway": 0.0003,
-    "AWS Cost Explorer": 0.30,
-}
-
 
 # ------------------------------------------
 # 🔧 Build per-service budget rows for frontend table
 # ------------------------------------------
-def build_service_budget_rows(df, days_elapsed: int, days_in_month: int):
+def build_service_budget_rows(df, days_elapsed: int, days_in_month: int, db: Session):
     if df.empty:
         return []
 
     rows = []
     grouped = df.groupby("service")["cost"].sum().reset_index()
+
+    # Get all budgets from database
+    all_budgets = {b.service: b for b in BudgetService.get_all(db)}
 
     print(f"🔍 Processing {len(grouped)} services for budget check:")
     
@@ -67,7 +62,9 @@ def build_service_budget_rows(df, days_elapsed: int, days_in_month: int):
         daily_burn = actual / days_elapsed
         projected = daily_burn * days_in_month
 
-        budget = SERVICE_BUDGETS.get(service)
+        # Get budget from database
+        budget_obj = all_budgets.get(service)
+        budget = budget_obj.budget if budget_obj else None
 
         print(f"  - {service}: actual=${actual:.4f}, projected=${projected:.4f}, budget={budget}")
 
@@ -112,7 +109,7 @@ def build_service_budget_rows(df, days_elapsed: int, days_in_month: int):
 # 🔥 Main Budget Endpoint
 # ------------------------------------------
 @router.get("/budget")
-def budget_analysis(budget: float, force: bool = False):
+def budget_analysis(budget: float, force: bool = False, db: Session = Depends(get_db)):
     """
     Calculates:
     - MTD spend
@@ -203,7 +200,7 @@ def budget_analysis(budget: float, force: bool = False):
     # ------------------------------------------
     # 🔥 Build per-service budgets
     # ------------------------------------------
-    service_budgets = build_service_budget_rows(df, days_elapsed, days_in_month)
+    service_budgets = build_service_budget_rows(df, days_elapsed, days_in_month, db)
 
     # ------------------------------------------
     # Final Response (frontend-ready)
