@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend_api.routes import costs, resources, anomalies, budget, service_budgets
+from backend_api.routes import costs, resources, anomalies, budget, service_budgets, heatmap
 from app.db.database import init_db
 from app.db.service import BudgetService
 from app.db.database import SessionLocal
@@ -49,3 +49,4 @@ app.include_router(resources.router, prefix="/api")
 app.include_router(anomalies.router, prefix="/api")
 app.include_router(budget.router, prefix="/api")
 app.include_router(service_budgets.router, prefix="/api")
+app.include_router(heatmap.router, prefix="/api")

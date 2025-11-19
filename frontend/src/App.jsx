@@ -3,7 +3,8 @@ import Dashboard from "./pages/Dashboard";
 import ResourceDashboard from "./pages/ResourceDashboard";
 import AnomalyDashboard from "./pages/AnomalyDashboard";
 import BudgetDashboard from "./pages/BudgetDashboard";
-import ServiceBudgets from "./pages/ServiceBudgets";   // ✅ NEW
+import ServiceBudgets from "./pages/ServiceBudgets";
+import RiskHeatmap from "./pages/RiskHeatmap";   // ✅ NEW
 
 function App() {
 
@@ -74,6 +75,18 @@ function App() {
             Service Budgets
           </button>
 
+          {/* ✅ HEATMAP TAB */}
+          <button
+            onClick={() => setTab("risk-heatmap")}
+            className={`px-3 py-1 rounded text-sm ${
+              tab === "risk-heatmap"
+                ? "bg-blue-500 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Risk Heatmap
+          </button>
+
         </div>
       </header>
 
@@ -89,6 +102,8 @@ function App() {
           <BudgetDashboard />
         ) : tab === "service-budgets" ? (
           <ServiceBudgets />
+        ) : tab === "risk-heatmap" ? (
+          <RiskHeatmap />
         ) : null}
       </main>
 
