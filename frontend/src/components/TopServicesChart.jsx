@@ -89,4 +89,6 @@ export default function TopServicesChart({ data }) {
       </ResponsiveContainer>
     </div>
   );
+
+  
 }
