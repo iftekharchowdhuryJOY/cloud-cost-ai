@@ -9,6 +9,10 @@ export default function ServiceTrends() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState(90);
+  const [showMA, setShowMA] = useState(true);
+  const [showBudget, setShowBudget] = useState(true);
+  const [showAnomalies, setShowAnomalies] = useState(true);
+  const [showAnomalyDrawer, setShowAnomalyDrawer] = useState(false);
 
   const api = import.meta.env.VITE_API_URL;
 
@@ -217,7 +221,7 @@ export default function ServiceTrends() {
               icon: getTrendIcon(summary.trend),
               color: getTrendColor(summary.trend),
             },
-            { label: `MA (${summary.moving_avg_window}d)`, value: "Smoothing", icon: "🧮", color: "#6366f1" },
+            { label: `MA (${summary.moving_avg_window}d)`, value: summary.last_moving_avg !== null ? `$${summary.last_moving_avg.toFixed(2)}` : "—", icon: "🧮", color: "#6366f1" },
             { label: "Anomaly Days", value: summary.anomaly_days, icon: "🚨", color: summary.anomaly_days > 0 ? "#dc2626" : "#10b981" },
             ...(summary.budget ? [{ label: "Budget", value: `$${summary.budget}`, icon: "🎯", color: "#f59e0b" }] : []),
           ].map((stat, idx) => (
@@ -258,6 +262,47 @@ export default function ServiceTrends() {
           boxShadow: "0 2px 12px rgba(0, 0, 0, 0.08)",
         }}
       >
+        {/* Visibility Toggles */}
+        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "16px" }}>
+          {[
+            { label: "Moving Avg", state: showMA, setter: setShowMA },
+            { label: "Budget Line", state: showBudget, setter: setShowBudget, disabled: !summary?.budget },
+            { label: "Anomaly Markers", state: showAnomalies, setter: setShowAnomalies },
+          ].map((t) => (
+            <button
+              key={t.label}
+              onClick={() => !t.disabled && t.setter(!t.state)}
+              style={{
+                padding: "8px 14px",
+                border: "2px solid " + (t.state ? "#3b82f6" : "#e5e7eb"),
+                backgroundColor: t.state ? "#eff6ff" : "white",
+                color: t.state ? "#3b82f6" : "#6b7280",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: t.disabled ? "not-allowed" : "pointer",
+                opacity: t.disabled ? 0.5 : 1,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowAnomalyDrawer(!showAnomalyDrawer)}
+            style={{
+              padding: "8px 14px",
+              border: "2px solid #6366f1",
+              backgroundColor: showAnomalyDrawer ? "#eef2ff" : "white",
+              color: "#4f46e5",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            {showAnomalyDrawer ? "Hide" : "Show"} Anomaly Details
+          </button>
+        </div>
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px", color: "#6b7280" }}>
             <p style={{ fontSize: "16px" }}>Loading trend data...</p>
@@ -305,7 +350,7 @@ export default function ServiceTrends() {
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: "14px", fontWeight: "600" }} />
-                {summary?.budget && (
+                {summary?.budget && showBudget && (
                   <ReferenceLine y={summary.budget} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: `Budget $${summary.budget}`, position: "right", fill: "#f59e0b", fontSize: 12 }} />
                 )}
                 <Line
@@ -313,24 +358,69 @@ export default function ServiceTrends() {
                   dataKey="cost"
                   stroke="#3b82f6"
                   strokeWidth={3}
-                  dot={anomalyDot}
+                  dot={showAnomalies ? anomalyDot : { r: 0 }}
                   activeDot={{ r: 6 }}
                   name="Daily Cost"
                 />
-                <Line
-                  type="monotone"
-                  dataKey="moving_avg"
-                  stroke="#6366f1"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={false}
-                  name="Moving Avg"
-                />
+                {showMA && (
+                  <Line
+                    type="monotone"
+                    dataKey="moving_avg"
+                    stroke="#6366f1"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Moving Avg"
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </>
         )}
       </div>
+      {/* Anomaly Details Drawer */}
+      {showAnomalyDrawer && (
+        <div
+          style={{
+            marginTop: "24px",
+            backgroundColor: "white",
+            borderRadius: "12px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            padding: "24px",
+          }}
+        >
+          <h3 style={{ fontSize: "18px", fontWeight: "700", margin: "0 0 16px 0", color: "#1f2937" }}>
+            Anomaly Details ({summary?.anomaly_days || 0})
+          </h3>
+          {summary?.anomaly_details?.length ? (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#f3f4f6" }}>
+                    {['Date','Cost','Moving Avg','Δ vs MA'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: '12px', color: '#374151', fontWeight: 600 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.anomaly_details.map((a, i) => (
+                    <tr key={i} style={{ borderTop: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '8px 12px', fontSize: '13px' }}>{new Date(a.date).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric'})}</td>
+                      <td style={{ padding: '8px 12px', fontSize: '13px', fontWeight: 600, color: '#dc2626' }}>${a.cost.toFixed(2)}</td>
+                      <td style={{ padding: '8px 12px', fontSize: '13px', color: '#6366f1' }}>${(a.moving_avg ?? 0).toFixed(2)}</td>
+                      <td style={{ padding: '8px 12px', fontSize: '13px', color: a.delta_vs_moving_avg > 0 ? '#dc2626' : '#10b981' }}>
+                        {a.delta_vs_moving_avg > 0 ? '+' : ''}${a.delta_vs_moving_avg.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>No anomaly days in selected window.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
