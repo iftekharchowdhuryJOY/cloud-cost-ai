@@ -113,13 +113,26 @@ async def get_service_trend(
     
     # Format data for frontend (include moving average & anomaly flag)
     data = []
+    anomaly_details = []
     for _, row in service_df.iterrows():
-        data.append({
+        moving_avg_val = round(float(row["moving_avg"]), 4) if not math.isnan(row["moving_avg"]) else None
+        is_anom = bool(row["is_anomaly"])
+        rec = {
             "date": row["day"],
             "cost": float(row["cost"]),
-            "moving_avg": round(float(row["moving_avg"]), 4) if not math.isnan(row["moving_avg"]) else None,
-            "is_anomaly": bool(row["is_anomaly"]),
-        })
+            "moving_avg": moving_avg_val,
+            "is_anomaly": is_anom,
+        }
+        data.append(rec)
+        if is_anom:
+            anomaly_details.append({
+                "date": row["day"],
+                "cost": float(row["cost"]),
+                "moving_avg": moving_avg_val,
+                "delta_vs_moving_avg": round(float(row["cost"]) - (moving_avg_val or 0.0), 4)
+            })
+
+    last_moving_avg = data[-1]["moving_avg"] if data else None
     
     return {
         "service": service_name,
@@ -133,6 +146,8 @@ async def get_service_trend(
             "max_daily": round(float(service_df["cost"].max()), 2),
             "moving_avg_window": ma_window,
             "anomaly_days": anomaly_days,
-            "budget": budget_value
+            "budget": budget_value,
+            "last_moving_avg": last_moving_avg,
+            "anomaly_details": anomaly_details
         }
     }

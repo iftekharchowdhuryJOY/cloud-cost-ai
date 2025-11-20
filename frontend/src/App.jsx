@@ -6,6 +6,7 @@ import BudgetDashboard from "./pages/BudgetDashboard";
 import ServiceBudgets from "./pages/ServiceBudgets";
 import RiskHeatmap from "./pages/RiskHeatmap";
 import ServiceTrends from "./pages/ServiceTrends";
+import Recommendations from "./pages/Recommendations";
 
 function App() {
 
@@ -100,6 +101,18 @@ function App() {
             Service Trends
           </button>
 
+          {/* ✅ RECOMMENDATIONS TAB */}
+          <button
+            onClick={() => setTab("recommendations")}
+            className={`px-3 py-1 rounded text-sm ${
+              tab === "recommendations"
+                ? "bg-blue-500 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Recommendations
+          </button>
+
         </div>
       </header>
 
@@ -119,6 +132,8 @@ function App() {
           <RiskHeatmap />
         ) : tab === "service-trends" ? (
           <ServiceTrends />
+        ) : tab === "recommendations" ? (
+          <Recommendations />
         ) : null}
       </main>
 

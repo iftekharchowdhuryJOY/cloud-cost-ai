@@ -22,3 +22,22 @@ class ServiceBudget(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class RecommendationFeedback(Base):
+    __tablename__ = "recommendation_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    service = Column(String, index=True, nullable=False)
+    action = Column(String, nullable=False)  # 'accept' | 'dismiss'
+    details = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "service": self.service,
+            "action": self.action,
+            "details": self.details,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

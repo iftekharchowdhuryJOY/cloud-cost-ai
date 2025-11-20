@@ -1,6 +1,6 @@
 """Database service for budget operations."""
 from sqlalchemy.orm import Session
-from app.db.models import ServiceBudget
+from app.db.models import ServiceBudget, RecommendationFeedback
 
 
 class BudgetService:
@@ -60,3 +60,25 @@ class BudgetService:
             if not existing:
                 db.add(ServiceBudget(service=service, budget=budget))
         db.commit()
+
+
+class FeedbackService:
+    """CRUD operations for recommendation feedback (accept/dismiss)."""
+
+    @staticmethod
+    def add_feedback(db: Session, service: str, action: str, details: str | None = None) -> RecommendationFeedback:
+        fb = RecommendationFeedback(service=service, action=action, details=details)
+        db.add(fb)
+        db.commit()
+        db.refresh(fb)
+        return fb
+
+    @staticmethod
+    def recent_for_service(db: Session, service: str, limit: int = 10) -> list[RecommendationFeedback]:
+        return (
+            db.query(RecommendationFeedback)
+            .filter(RecommendationFeedback.service == service)
+            .order_by(RecommendationFeedback.created_at.desc())
+            .limit(limit)
+            .all()
+        )
