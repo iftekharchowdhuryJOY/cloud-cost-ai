@@ -3,13 +3,26 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from app.services.cost_explorer import get_spend_timeseries_by_service
 from app.db.database import SessionLocal
-from app.db.service import BudgetService
+from app.db.service import BudgetService, FeedbackService, AlertService, RecoveryService, SettingsService
+from app.services.slack_notifier import send_slack_alert
 
 USE_AWS = os.getenv("USE_AWS", "true").lower() == "true"
+
+# Feedback scoring tunables (env overrideable)
+def _load_settings(db) -> dict:
+    raw = SettingsService.get_all(db)
+    return {
+        "FEEDBACK_DISMISS_COOLDOWN_DAYS": int(raw.get("FEEDBACK_DISMISS_COOLDOWN_DAYS", 14)),
+        "FEEDBACK_ACCEPT_BOOST": int(raw.get("FEEDBACK_ACCEPT_BOOST", 15)),
+        "FEEDBACK_DISMISS_PENALTY_FACTOR": float(raw.get("FEEDBACK_DISMISS_PENALTY_FACTOR", 0.4)),
+        "RECOMMENDATION_ALERT_THRESHOLD": int(raw.get("RECOMMENDATION_ALERT_THRESHOLD", 70)),
+        "RECOMMENDATION_ALERT_COOLDOWN_DAYS": int(raw.get("RECOMMENDATION_ALERT_COOLDOWN_DAYS", 7)),
+        "RECOMMENDATION_RECOVERY_DAYS": int(raw.get("RECOMMENDATION_RECOVERY_DAYS", 3)),
+    }
 
 
 @dataclass
@@ -125,6 +138,58 @@ def _priority_score(f: Dict[str, Any]) -> int:
     return int(round(score * 100))
 
 
+def _apply_feedback_adjustment(service: str, features: Dict[str, Any], base_score: int, db, settings: dict) -> Dict[str, Any]:
+    """Adjust priority based on most recent feedback.
+
+    - Dismiss: suppress score for cooldown window
+    - Accept: boost score while problematic signals persist (acceleration, anomalies, budget pressure)
+    """
+    rows = FeedbackService.recent_for_service(db, service, limit=1)
+    if not rows:
+        return {
+            "priority_score": base_score,
+            "base_priority_score": base_score,
+            "feedback_action": None,
+            "feedback_effect": None,
+        }
+    fb = rows[0]
+    # Normalize created_at to UTC aware
+    def _utc(dt):
+        if not dt:
+            return None
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    now_utc = datetime.now(timezone.utc)
+    fb_created = _utc(fb.created_at)
+    age_days = (now_utc - fb_created).days if fb_created else 0
+
+    action = fb.action
+    adjusted = base_score
+    effect_desc = None
+
+    if action == "dismiss" and age_days <= settings["FEEDBACK_DISMISS_COOLDOWN_DAYS"]:
+        adjusted = int(round(base_score * settings["FEEDBACK_DISMISS_PENALTY_FACTOR"]))
+        effect_desc = f"Suppressed after dismiss {age_days}d ago (cooldown {settings['FEEDBACK_DISMISS_COOLDOWN_DAYS']}d)."
+    elif action == "accept":
+        # Determine if issue still persists (cost acceleration, anomaly density, or budget pressure high)
+        persists = (
+            (features.get("acceleration_ratio", 1.0) > 1.05)
+            or (features.get("anomaly_density", 0.0) > 0.05)
+            or (features.get("budget_pressure") and features.get("budget_pressure") > 1.0)
+        )
+        if persists:
+            adjusted = min(100, base_score + settings["FEEDBACK_ACCEPT_BOOST"])
+            effect_desc = f"Boosted (+{settings['FEEDBACK_ACCEPT_BOOST']}) after accept {age_days}d ago; issue persists."
+        else:
+            effect_desc = f"Not boosted: conditions improved since accept {age_days}d ago."
+
+    return {
+        "priority_score": adjusted,
+        "base_priority_score": base_score,
+        "feedback_action": action,
+        "feedback_effect": effect_desc,
+    }
+
+
 def generate_recommendations(days: int = 90) -> Dict[str, Any]:
     df = get_spend_timeseries_by_service(days=days)
     if df.empty:
@@ -135,20 +200,74 @@ def generate_recommendations(days: int = 90) -> Dict[str, Any]:
     db = SessionLocal()
     try:
         recs = []
+        settings = _load_settings(db)
         for service, s_df in df.groupby("service"):
             budget_obj = BudgetService.get_by_service(db, service)
             budget = float(budget_obj.budget) if budget_obj else None
             f = _service_features(s_df, budget)
             issues = _issue_rules(service, f)
             priority = _priority_score(f)
-            potential = sum([i.potential_savings_usd or 0.0 for i in issues])
+            # Savings estimation: if projected spend exceeds budget, apply acceleration factor
+            potential = 0.0
+            if budget and f.get("projected_30d") and f["projected_30d"] > budget:
+                raw_over = f["projected_30d"] - budget
+                accel_excess = max(0.0, f.get("acceleration_ratio", 1.0) - 1.0)  # 0 for <=1
+                potential = round(raw_over * (1 + accel_excess), 2)
+            # If BUDGET_RISK issue exists with its own potential_savings_usd, prefer max between calculated and issue value
+            issue_potential_sum = sum([(i.potential_savings_usd or 0.0) for i in issues])
+            potential = max(potential, issue_potential_sum)
             if not issues:
                 continue
+            adj = _apply_feedback_adjustment(service, f, priority, db, settings)
+            # Slack alert on first high-priority appearance (with cooldown) & recovery detection
+            alert_sent = False
+            alert_recovered = False
+            if adj["priority_score"] >= settings["RECOMMENDATION_ALERT_THRESHOLD"]:
+                if not AlertService.has_recent_alert(db, service, settings["RECOMMENDATION_ALERT_COOLDOWN_DAYS"]):
+                    title = f"High-Priority Cost Recommendation: {service}"
+                    msg_lines = [
+                        f"Priority {adj['priority_score']} (base {adj['base_priority_score']})",
+                        f"Issues: {', '.join([i.code for i in issues])}"
+                    ]
+                    if f.get("budget_pressure"):
+                        msg_lines.append(f"Budget pressure: {f['budget_pressure']:.2f}x")
+                    if f.get("acceleration_ratio"):
+                        msg_lines.append(f"Acceleration: {f['acceleration_ratio']:.2f}x")
+                    if f.get("anomaly_density"):
+                        msg_lines.append(f"Anomaly density: {f['anomaly_density']*100:.0f}%")
+                    slack_msg = "\n".join(msg_lines)
+                    if send_slack_alert(title, slack_msg, emoji="🚨"):
+                        AlertService.record_alert(db, service, adj["priority_score"], adj["base_priority_score"], adj["feedback_action"])
+                        alert_sent = True
+            else:
+                # Below threshold: check for recovery from prior high alert
+                from app.db.models import RecommendationAlert
+                latest_alert = (
+                    db.query(RecommendationAlert)
+                    .filter(RecommendationAlert.service == service)
+                    .order_by(RecommendationAlert.created_at.desc())
+                    .first()
+                )
+                if latest_alert and latest_alert.priority_score >= settings["RECOMMENDATION_ALERT_THRESHOLD"]:
+                    age_days = (datetime.now(timezone.utc) - (latest_alert.created_at if latest_alert.created_at.tzinfo else latest_alert.created_at.replace(tzinfo=timezone.utc))).days
+                    if age_days >= settings["RECOMMENDATION_RECOVERY_DAYS"]:
+                        alert_recovered = True
+                        send_slack_alert(
+                            f"Recommendation Recovered: {service}",
+                            f"Priority now {adj['priority_score']} (< {settings['RECOMMENDATION_ALERT_THRESHOLD']}) after {age_days}d.",
+                            emoji="✅"
+                        )
+                        RecoveryService.record_recovery(db, service, latest_alert.priority_score, adj["priority_score"], age_days)
             recs.append({
                 "service": service,
                 "features": f,
                 "issues": [i.__dict__ for i in issues],
-                "priority_score": priority,
+                "priority_score": adj["priority_score"],
+                "base_priority_score": adj["base_priority_score"],
+                "feedback_action": adj["feedback_action"],
+                "feedback_effect": adj["feedback_effect"],
+                "alert_sent": alert_sent,
+                "alert_recovered": alert_recovered,
                 "potential_savings_usd": round(potential, 2)
             })
     finally:
@@ -175,6 +294,7 @@ def explain_recommendation(service: str, days: int = 90) -> Dict[str, Any]:
     try:
         budget_obj = BudgetService.get_by_service(db, service)
         budget = float(budget_obj.budget) if budget_obj else None
+        fb_rows = FeedbackService.recent_for_service(db, service, limit=1)
     finally:
         db.close()
 
@@ -186,6 +306,11 @@ def explain_recommendation(service: str, days: int = 90) -> Dict[str, Any]:
     top = issues[0]
     explanation = (
         f"{service} shows {top.title.lower()}. {top.evidence}. "
-        f"Recommendation: {top.recommended_action}"
+        f"Recommendation: {top.recommended_action}."
     )
-    return {"service": service, "explanation": explanation, "facts": f, "issues": [i.__dict__ for i in issues]}
+    if fb_rows:
+        fb = fb_rows[0]
+        fb_created = fb.created_at if fb.created_at and fb.created_at.tzinfo else (fb.created_at.replace(tzinfo=timezone.utc) if fb.created_at else None)
+        age_days = (datetime.now(timezone.utc) - fb_created).days if fb_created else 0
+        explanation += f" Last feedback: {fb.action} {age_days}d ago."
+    return {"service": service, "explanation": explanation, "facts": f, "issues": [i.__dict__ for i in issues], "feedback": fb_rows[0].to_dict() if fb_rows else None}
