@@ -80,7 +80,6 @@ export default function RiskHeatmap() {
   return (
     <div
       style={{
-        padding: "40px",
         backgroundColor: "#f9fafb",
         minHeight: "100vh",
         backgroundImage: "linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)",
@@ -152,7 +151,7 @@ export default function RiskHeatmap() {
       </div>
 
       {/* Summary Stats */}
-      <div style={{ padding: "0 40px" }}>
+      <div>
       {summary && (
         <div
           style={{
@@ -202,7 +201,7 @@ export default function RiskHeatmap() {
       </div>
 
       {/* Filters & Sort */}
-      <div style={{ padding: "0 40px", marginBottom: "24px" }}>
+      <div style={{ marginBottom: "24px" }}>
       <div
         style={{
           display: "flex",
@@ -258,7 +257,7 @@ export default function RiskHeatmap() {
       </div>
 
       {/* Heatmap Grid */}
-      <div style={{ padding: "0 40px 40px 40px" }}>
+      <div style={{ paddingBottom: "40px" }}>
       {filteredData.length === 0 ? (
         <div
           style={{

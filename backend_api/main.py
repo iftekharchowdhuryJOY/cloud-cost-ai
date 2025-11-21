@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend_api.routes import costs, resources, anomalies, budget, service_budgets, heatmap, service_trends, recommendations
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+from backend_api.routes import costs, resources, anomalies, budget, service_budgets, heatmap, service_trends, recommendations, ai, ai_chat
 from app.db.database import init_db
 from app.db.service import BudgetService
 from app.db.database import SessionLocal
@@ -52,3 +57,5 @@ app.include_router(service_budgets.router, prefix="/api")
 app.include_router(heatmap.router, prefix="/api")
 app.include_router(service_trends.router, prefix="/api")
 app.include_router(recommendations.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
+app.include_router(ai_chat.router, prefix="/api")

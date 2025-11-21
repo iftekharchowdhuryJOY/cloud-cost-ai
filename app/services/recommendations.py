@@ -12,6 +12,7 @@ from app.services.slack_notifier import send_slack_alert
 
 USE_AWS = os.getenv("USE_AWS", "true").lower() == "true"
 
+
 # Feedback scoring tunables (env overrideable)
 def _load_settings(db) -> dict:
     raw = SettingsService.get_all(db)

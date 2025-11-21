@@ -93,7 +93,6 @@ export default function ServiceTrends() {
   return (
     <div
       style={{
-        padding: "40px",
         backgroundColor: "#f9fafb",
         minHeight: "100vh",
         backgroundImage: "linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)",

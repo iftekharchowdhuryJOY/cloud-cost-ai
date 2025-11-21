@@ -132,8 +132,8 @@ export default function Recommendations() {
   };
 
   return (
-    <div style={{ padding: "40px", backgroundColor: "#f9fafb", minHeight: "100vh" }}>
-      <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "12px", marginBottom: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "12px", marginBottom: "24px" }}>
         <h1 style={{ fontSize: 36, fontWeight: 800, margin: 0, color: "#111827" }}>AI Recommendations</h1>
         <p style={{ color: "#6b7280", marginTop: 8 }}>Actionable insights derived from spend trends, anomalies and budgets.</p>
         <div style={{ marginTop: 16, display: "flex", gap: 8 }}>

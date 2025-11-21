@@ -58,8 +58,7 @@ export default function ServiceBudgets() {
   }
 
   return (
-    <div style={{ 
-      padding: "40px", 
+    <div style={{
       backgroundColor: "#f9fafb", 
       minHeight: "100vh",
       backgroundImage: "linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)"
